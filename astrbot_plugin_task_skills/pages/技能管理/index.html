@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>自动化skills学习</title>
+<style>
+:root{color-scheme:light;--ink:#292929;--muted:#686868;--line:#e1e1e1;--accent:#333333;--surface:#ffffff;--background:#f5f5f5}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--background);color:var(--ink);font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;overflow-wrap:anywhere}
+header{padding:28px max(24px,calc((100% - 1232px)/2));background:var(--surface);border-bottom:1px solid var(--line)}
+header small{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:1.5px}
+h1{font-size:28px;font-weight:600;letter-spacing:-.6px;line-height:1.3;margin:8px 0}
+header p{margin:0;color:var(--muted);font-size:13px}
+main{max-width:1280px;margin:auto;padding:20px 24px}
+.bar{display:flex;gap:12px 16px;flex-wrap:wrap;align-items:center;padding:0 0 16px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.bar>*{min-width:0;max-width:100%}
+.stat{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+#count{color:var(--ink);font-size:14px;font-weight:600}
+#config{flex:1 1 260px}
+.workspace-nav{max-width:1280px;margin:auto;padding:20px 24px 0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.section-heading{margin:20px 0 4px;font-size:20px;font-weight:600}
+.section-note{color:var(--muted);margin:0;font-size:13px}
+.overview{margin-top:14px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.filter-label{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
+aside select{width:100%}.filter-help{font-size:12px;color:var(--muted);margin:8px 0}
+.list-summary{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:16px;font-size:12px;color:var(--muted)}
+.list-summary button{padding:3px 8px;font-size:12px}
+.card .categories{font-size:11px;color:#555}
+.detail-heading{font-size:12px;color:var(--muted);margin-bottom:12px;letter-spacing:1px}
+.review-section{margin-top:20px;padding:16px;background:#fafafa;border:1px solid var(--line);border-radius:6px}
+.review-section h3{margin:0 0 8px;font-size:15px}.review-section p{margin-bottom:12px}
+.bar label{font-size:13px}
+button,input,textarea,select{font:inherit}
+button{max-width:100%;border:1px solid #d6d6d6;border-radius:5px;background:var(--surface);color:var(--ink);padding:7px 12px;line-height:1.5;cursor:pointer;overflow-wrap:anywhere;transition:background-color .15s,border-color .15s}
+button:hover:not(:disabled){background:#f3f3f3;border-color:#a6a6a6}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover:not(:disabled){background:#1d1d1d;border-color:#1d1d1d}
+.danger{color:#555;border-style:dashed}
+.danger:hover:not(:disabled){background:#ececec;border-color:#777;color:#222}
+button:disabled,input:disabled,select:disabled,textarea:disabled{background:#f2f2f2;border-color:var(--line);color:#858585;cursor:not-allowed;opacity:.7}
+:where(button,input,textarea,select):focus-visible{outline:2px solid #555;outline-offset:3px}
+input:not([type="checkbox"]),textarea,select{min-width:0;max-width:100%;padding:9px 11px;border:1px solid #d6d6d6;border-radius:5px;background:var(--surface);color:var(--ink)}
+input:not([type="checkbox"]){width:100%}
+input::placeholder,textarea::placeholder{color:#777;opacity:1}
+input:not([type="checkbox"]):hover:not(:disabled),textarea:hover:not(:disabled),select:hover:not(:disabled){border-color:#aaa}
+input[type="checkbox"]{width:15px;height:15px;margin:0;flex:0 0 auto;accent-color:var(--accent);cursor:pointer}
+input[type="checkbox"]:disabled{cursor:not-allowed}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+aside,.detail{min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+aside{padding:14px}
+.detail{padding:24px;min-height:480px}
+#list{max-height:65vh;overflow:auto;overscroll-behavior:contain;margin-top:12px;padding:4px;scrollbar-width:thin;scrollbar-color:#c6c6c6 transparent}
+#list>p{margin:16px 8px;color:var(--muted);font-size:13px}
+.card{display:block;width:100%;text-align:left;margin:0 0 6px;padding:11px 12px;border-color:transparent;border-radius:5px}
+.card:last-child{margin-bottom:0}
+.card strong{display:block;font-size:14px;font-weight:600;line-height:1.5}
+.card small{display:block;color:var(--muted);font-size:12px;margin-top:4px;line-height:1.6}
+.card.selected{border-color:#c8c8c8;background:#f0f0f0;box-shadow:inset 3px 0 0 var(--accent)}
+.card.selected:hover:not(:disabled){background:#eaeaea;border-color:#b5b5b5}
+.detail h2{margin:0 0 8px;font-size:21px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+.detail p{color:var(--muted);font-size:13px;line-height:1.8;margin:0 0 16px}
+code{font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:#f2f2f2;border-radius:3px;padding:2px 4px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+label{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
+#tools>label{font-size:12px;color:var(--muted)}
+select{padding:7px 10px}
+#body{max-width:100%;margin:20px 0 0;padding:16px;background:#fafafa;border:1px solid var(--line);border-radius:5px;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}
+#body:empty{display:none}
+textarea{display:block;width:100%;min-height:380px;margin-top:20px;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}
+#status{min-height:0;white-space:pre-wrap;color:var(--ink);font-size:13px}
+#status:not(:empty){padding:10px 12px;margin-bottom:16px;border:1px solid #ccc;border-left:3px solid #666;border-radius:4px;background:var(--surface)}
+#notice{color:var(--muted);font-size:13px;line-height:1.7;margin:0 0 16px}
+#notice:empty{display:none}
+.settings{margin:0 0 20px;padding:24px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.settings h2{margin:0 0 4px;font-size:18px;font-weight:600}.settings p{margin:0 0 14px}
+.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;max-width:820px}
+.setting{display:block}.setting span{display:block;font-weight:600;margin-bottom:4px}.setting small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.setting input[type="number"],.setting input[type="text"]{width:100%}.setting-check{display:flex;align-items:center;margin-top:8px}
+.settings-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}.settings-actions small{color:var(--muted)}
+footer{color:var(--muted);margin-top:20px;padding:16px 0 4px;border-top:1px solid var(--line);font-size:12px;line-height:1.8}
+@media(max-width:900px){.layout{grid-template-columns:260px minmax(0,1fr)}.detail{padding:20px}}
+@media(max-width:760px){header{padding:22px 16px}h1{font-size:25px}main{padding:16px}.layout{grid-template-columns:minmax(0,1fr);gap:12px}.bar{gap:10px 14px}#config{flex-basis:100%;order:1}#list{max-height:280px}.detail{padding:18px;min-height:320px}#body{padding:12px}textarea{min-height:320px}footer{margin-top:16px}}
+@media(prefers-reduced-motion:reduce){button{transition:none}}
+@media(max-width:760px){.workspace-nav{padding:16px 16px 0}.settings{padding:18px}.settings-grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+<header><small>ASTRBOT / SKILLS</small><h1>自动化skills学习</h1><p>从可观察的工具证据中学习，让每个步骤都能核验。</p></header>
+<section class="workspace-nav" aria-label="技能管理导航">
+<nav class="tabs" aria-label="管理区域"><button id="libraryTab" aria-pressed="true" aria-controls="libraryPanel">技能库</button><button id="reviewTab" aria-pressed="false" aria-controls="libraryPanel">审核工作台</button><button id="settingsTab" aria-pressed="false" aria-controls="settingsPanel">插件设置</button></nav>
+<h2 id="sectionTitle" class="section-heading">技能库</h2><p id="sectionNote" class="section-note">按审核状态、技能分类与关键词组合查找，选择技能查看当前版本。</p>
+<div id="overview" class="overview" aria-label="技能状态统计" aria-live="polite"></div>
+</section>
+<main><div id="status" role="status" aria-live="polite"></div><div class="bar"><div class="stat" id="count">加载中</div><div class="stat" id="config"></div><button id="refresh">刷新数据</button></div><p id="notice"></p><section class="settings"><h2>插件设置</h2><p>只修改本插件的六项 schema 配置。自动学习同时写入共享作用域覆盖值，因此下方“当前有效值”与保存后的行为一致。</p><div class="settings-grid"><label class="setting"><span>Provider ID</span><input id="provider" type="text" maxlength="256" placeholder="留空则使用当前会话 Provider"><small>仅填写已配置的 Provider ID，不显示或读取 API Key。</small></label><label class="setting"><span>技能容量上限</span><input id="maxSkills" type="number" min="1" max="1000" step="1"><small>最多保存技能数，范围 1-1000。</small></label><label class="setting"><span>学习冷却时间（秒）</span><input id="cooldown" type="number" min="60" max="86400" step="1"><small>每个作用域两次学习尝试的最短间隔，范围 60-86400 秒。</small></label><label class="setting setting-check"><input id="autoLearn" type="checkbox"><span>自动学习（当前有效值）</span></label><label class="setting setting-check"><input id="autoPublish" type="checkbox"><span>自动发布</span><small>仅共享模式下新学习或合并的技能会发布到原生库。</small></label><label class="setting setting-check"><input id="shared" type="checkbox"><span>全局共享</span><small>关闭时沿用安全撤回流程，不会暴露隔离作用域。</small></label></div><div class="settings-actions"><button id="saveConfig" class="primary">保存插件设置</button><small id="configState" role="status"></small></div></section><div class="layout"><aside><input id="search" aria-label="搜索技能" placeholder="搜索名称、标签、条件或工具…"><div id="list"></div></aside><section class="detail"><h2 id="title">选择一个技能</h2><p id="description">在左侧选择技能以查看、编辑、删除或发布。隔离模式请使用聊天管理指令。</p><p>JSON 字段说明：<code>name</code> 名称，<code>description</code> 用途，<code>steps</code> 步骤，<code>checks</code> 检查项，<code>cautions</code> 注意事项；增强结构还包括 <code>tags</code> 标签、<code>conditions</code> 适用条件、<code>tools</code> 工具名、<code>workflow</code> 有序操作。</p><div id="tools" hidden><div class="actions"><button id="edit">编辑 JSON</button><button id="save" class="primary" hidden>保存新版本</button><button id="publish">发布到原生库</button><button id="delete" class="danger">删除技能</button></div><label>历史版本 <select id="history"></select><button id="rollback">回滚版本</button></label></div><pre id="body"></pre><textarea id="editor" aria-label="完整技能 JSON" hidden spellcheck="false"></textarea></section></div><footer>仅 AstrBot dashboard 登录用户可管理。学习每次最多额外调用一次模型；合并、检索、编辑和发布不调用模型。发布文件可能被所有会话使用。</footer></main>
+<script src="/api/plugin/page/bridge-sdk.js"></script>
+<script>
+'use strict';
+const reviewLabels={pending:'待审核',approved:'已批准',rejected:'已拒绝'};
+const statusFilter=document.createElement('select');statusFilter.id='reviewFilter';statusFilter.setAttribute('aria-label','审核状态筛选');
+for(const [value,label] of Object.entries({all:'全部状态',...reviewLabels})){const option=document.createElement('option');option.value=value;option.textContent=label;statusFilter.append(option)}
+const sidebar=document.querySelector('aside');
+const statusLabel=document.createElement('label');statusLabel.className='filter-label';statusLabel.textContent='审核状态';statusLabel.setAttribute('for','reviewFilter');sidebar.prepend(statusFilter);sidebar.prepend(statusLabel);
+const categoryLabel=document.createElement('label');categoryLabel.className='filter-label';categoryLabel.textContent='技能分类';categoryLabel.setAttribute('for','categoryFilter');
+const categoryFilter=document.createElement('select');categoryFilter.id='categoryFilter';categoryFilter.setAttribute('aria-label','技能分类筛选');
+const categoryHelp=document.createElement('p');categoryHelp.className='filter-help';categoryHelp.textContent='基于 tags 标签，一个技能可属于多个分类；无标签归未分类。';
+sidebar.insertBefore(categoryLabel,$('list'));sidebar.insertBefore(categoryFilter,$('list'));sidebar.insertBefore(categoryHelp,$('list'));
+const listSummary=document.createElement('div');listSummary.className='list-summary';listSummary.innerHTML='<span id="filteredCount"></span><button id="clearFilters">重置筛选</button>';sidebar.insertBefore(listSummary,$('list'));
+const settingsPanel=document.querySelector('.settings');settingsPanel.id='settingsPanel';settingsPanel.hidden=true;
+const libraryPanel=document.querySelector('.layout');libraryPanel.id='libraryPanel';
+const detailHeading=document.createElement('div');detailHeading.className='detail-heading';detailHeading.textContent='技能详情 / 当前候选版本';document.querySelector('.detail').prepend(detailHeading);
+const categoryDetail=document.createElement('p');categoryDetail.id='categoryDetail';document.querySelector('.detail').insertBefore(categoryDetail,$('tools'));
+const categoryInstructions=document.createElement('p');categoryInstructions.textContent='修改技能分类：点击“编辑 JSON”修改 tags 数组并保存新版本。增强结构需保留 tags、conditions、tools、workflow 四项；旧版可保持未分类，或手动补齐四项后保存。保存后再次待审核，不会自动发布。';document.querySelector('.detail').insertBefore(categoryInstructions,$('tools'));
+let activeSection='library';
+function showSection(section){const changed=activeSection!==section;activeSection=section;settingsPanel.hidden=section!=='settings';libraryPanel.hidden=section==='settings';$('overview').hidden=section==='settings';for(const [id,key] of [['libraryTab','library'],['reviewTab','review'],['settingsTab','settings']])$(id).setAttribute('aria-pressed',String(section===key));$('sectionTitle').textContent={library:'技能库',review:'审核工作台',settings:'插件设置'}[section];$('sectionNote').textContent={library:'按审核状态、技能分类与关键词组合查找，选择技能查看当前版本。',review:'优先处理待审核候选；核对工具证据后批准或拒绝，审核备注非必填。',settings:'学习与发布策略独立配置，不占用技能列表。保存不会重启 Bot。'}[section];if(changed&&section!=='settings'){statusFilter.value=section==='review'?'pending':'all';list()}}
+for(const [id,section] of [['libraryTab','library'],['reviewTab','review'],['settingsTab','settings']])$(id).onclick=()=>showSection(section);
+document.querySelector('label:has(#autoPublish) span').textContent='审核通过后自动发布';
+document.querySelector('label:has(#autoPublish) small').textContent='默认关闭；即使开启，新生成和更新仍必须管理员审核。';
+const modeLabel=document.createElement('label');modeLabel.className='setting';modeLabel.innerHTML='<span>审核模式</span><select id="reviewMode"><option value="manual">人工审核</option><option value="auto">自动发布</option></select><small>自动发布仅处理最终验证成功且技能通过校验的候选；仍受安全过滤、共享模式和原生文件保护约束，但存在误发布风险。</small>';document.querySelector('.settings-grid').insertBefore(modeLabel,document.querySelector('label:has(#autoPublish)'));
+document.querySelector('.settings>p').textContent='设置保存时提交完整配置并持久化。自动学习同时写入共享作用域覆盖值，因此下方“当前有效值”与保存后的行为一致。';
+const reviewSection=document.createElement('section');reviewSection.className='review-section';const reviewTitle=document.createElement('h3');reviewTitle.textContent='审核与发布';reviewSection.append(reviewTitle);const reviewHelp=document.createElement('p');reviewHelp.textContent='最终工具验证依据与脱敏失败原因见下方证据。失败步骤只用于避坑，不得作为正确流程。批准前请实际测试；待审核和已拒绝候选不可使用，已批准旧版仍可用。编辑或回滚再次待审核。';reviewSection.append(reviewHelp);document.querySelector('#tools').prepend(reviewSection);
+const verificationLabel=document.createElement('label');verificationLabel.className='setting';verificationLabel.innerHTML='<span>审核备注（非必填）</span><input id="verification" type="text" maxlength="4000" aria-describedby="verificationHelp"><small id="verificationHelp">可留空直接批准；备注不能包含凭据，批准不代表已实际测试。</small>';reviewSection.append(verificationLabel);const reviewActions=document.createElement('div');reviewActions.className='actions';reviewSection.append(reviewActions);
+for(const [action,label] of Object.entries({approve:'批准',approve_publish:'批准并发布',reject:'拒绝'})){const button=document.createElement('button');button.id=action;button.textContent=label;reviewActions.append(button);button.onclick=()=>{if(busy||!selected)return;const verification=action==='reject'?'':$('verification').value.trim();return load({action,name:selected.skill.name,revision:selected.revision||1,verification})}}
+const confirmation=document.createElement('div');confirmation.hidden=true;confirmation.innerHTML='<p id="confirmationText"></p><button id="confirmAction" class="danger">确认执行</button> <button id="cancelAction">取消</button>';document.querySelector('#tools').append(confirmation);let pendingAction=null;
+function confirmAction(payload,text){pendingAction=payload;$('confirmationText').textContent=text;confirmation.hidden=false}
+function cancelAction(){pendingAction=null;confirmation.hidden=true}
+statusFilter.onchange=()=>list();
+function $(id){return document.getElementById(id)}let records=[],selected=null,csrf='',busy=false;
+function skillTags(skill){return [...new Set((Array.isArray(skill.tags)?skill.tags:[]).filter(tag=>typeof tag==='string'&&tag.trim()).map(tag=>tag.trim()))]}
+function updateCategories(){const current=categoryFilter.value;const counts=new Map();let untagged=0;for(const record of records){const tags=skillTags(record.skill);if(!tags.length)untagged++;for(const tag of tags)counts.set(tag,(counts.get(tag)||0)+1)}categoryFilter.replaceChildren();for(const [value,label] of [['all','全部分类（'+records.length+'）'],['untagged','未分类（'+untagged+'）'],...[...counts].sort(([a],[b])=>a.localeCompare(b,'zh-CN')).map(([tag,count])=>['tag:'+tag,tag+'（'+count+'）'])]){const option=document.createElement('option');option.value=value;option.textContent=label;categoryFilter.append(option)}categoryFilter.value=[...categoryFilter.children].some(option=>option.value===current)?current:'all';$('overview').textContent='全部 '+records.length+' · 待审核 '+records.filter(r=>(r.review_status||'pending')==='pending').length+' · 已批准 '+records.filter(r=>r.review_status==='approved').length+' · 已拒绝 '+records.filter(r=>r.review_status==='rejected').length+' · 分类 '+counts.size+' · 未分类 '+untagged}
+categoryFilter.onchange=()=>list();$('clearFilters').onclick=()=>{$('search').value='';statusFilter.value='all';categoryFilter.value='all';list()};
+const bridge=window.AstrBotPluginPage;
+const endpoint='/api/plug/task-skills/api';
+function get_payload(data){if(data?.status==='error')throw Error(data.message||'操作失败，请刷新后重试。');const result=data?.data??data;if(result?.error)throw Error(result.error);if(!result||!Array.isArray(result.records)||!result.stats||!result.config||typeof result.csrf!=='string')throw Error('服务响应格式无效，请刷新页面并检查插件是否已重载。');return result}
+async function requestData(payload){if(bridge){await bridge.ready();return get_payload(await (payload?bridge.apiPost('api',{...payload,csrf}):bridge.apiGet('api')))}const options=payload?{method:'POST',headers:{'Content-Type':'application/json','X-Task-CSRF':csrf},body:JSON.stringify(payload)}:{};const response=await fetch(endpoint,{...options,credentials:'same-origin',cache:'no-store'});const data=await response.json();if(!response.ok)throw Error(data.error||data.message||'请先登录 dashboard');return get_payload(data)}
+function status(text){$('status').textContent=text}
+function setControls(disabled){document.querySelectorAll('button,input,select,textarea').forEach(control=>control.disabled=disabled);reviewControls()}
+function fillConfig(config){$('provider').value=config.provider_id;$('maxSkills').value=config.max_skills;$('cooldown').value=config.cooldown_seconds;$('autoLearn').checked=config.auto_learn;$('reviewMode').value=config.review_mode||'manual';$('autoPublish').checked=config.auto_publish;$('shared').checked=config.shared_skills;$('config').textContent+=' · 自动学习默认 '+(config.auto_learn_default?'开':'关')+' · 覆盖 '+(config.auto_learn_override===null?'无':(config.auto_learn_override?'开':'关'))}
+async function load(payload){if(busy)return false;busy=true;setControls(true);status('');let succeeded=false;try{const data=await requestData(payload);if(data.error)throw Error(data.error);csrf=data.csrf;records=data.records;$('count').textContent=data.stats.skills+' 个技能 / '+data.stats.revisions+' 个版本';$('config').textContent='容量 '+data.config.max_skills+' · 冷却 '+data.config.cooldown_seconds+' 秒 · 审核模式：'+(data.config.review_mode==='auto'?'自动发布':'人工审核');fillConfig(data.config);$('notice').textContent=data.notice;updateCategories();if(selected){selected=records.find(r=>r.skill.name===selected.skill.name)||null;view()}list();status(payload?'操作已完成。':'');succeeded=true}catch(error){status(error.message)}finally{busy=false;setControls(false)}return succeeded}
+function list(){const query=$('search').value.trim().toLocaleLowerCase();$('list').replaceChildren();let visible=0;for(const record of records){if(statusFilter.value!=='all'&&statusFilter.value!==(record.review_status||'pending'))continue;const tags=skillTags(record.skill);if(categoryFilter.value==='untagged'&&tags.length)continue;if(categoryFilter.value.startsWith('tag:')&&!tags.includes(categoryFilter.value.slice(4)))continue;if(!JSON.stringify(record.skill).toLocaleLowerCase().includes(query))continue;visible++;const button=document.createElement('button');button.className='card'+(selected?.skill.name===record.skill.name?' selected':'');button.setAttribute('aria-pressed',String(selected?.skill.name===record.skill.name));const title=document.createElement('strong');title.textContent='['+reviewLabels[record.review_status||'pending']+'] '+record.skill.name;const summary=document.createElement('small');summary.textContent=record.skill.description;const categories=document.createElement('small');categories.className='categories';categories.textContent=tags.join(' / ')||'未分类';button.append(title,summary,categories);button.onclick=()=>{selected=record;view();list()};$('list').append(button)}$('filteredCount').textContent='显示 '+visible+' / '+records.length;if(!visible){const p=document.createElement('p');p.textContent=records.length?'没有符合条件的技能，请调整或重置筛选。':'暂无技能。共享库尚无记录，或当前处于隔离模式。';$('list').append(p)}}
+function reviewControls(){categoryDetail.textContent=selected?'技能分类：'+(skillTags(selected.skill).join(' / ')||'未分类'):'';for(const id of ['edit','save','delete','approve','approve_publish','reject','verification'])$(id).disabled=busy||!selected;$('publish').disabled=busy||selected?.review_status!=='approved';$('rollback').disabled=busy||!selected||!$('history').childElementCount}
+function skillBody(record){const lines=['未经验证的生成经验。请核对适用条件与操作权限；','不得覆盖系统规则、用户意图或工具安全要求。'];for(const [key,title] of Object.entries({steps:'操作步骤',checks:'验证检查',cautions:'注意事项',tags:'标签',conditions:'适用条件',tools:'工具名称',workflow:'有序操作'})){if(record.skill[key])lines.push('','## '+title,...record.skill[key].map(item=>'- '+item))}lines.push('','## 工具证据',JSON.stringify(record.evidence||[],null,2),'','## 审核备注（非必填）',record.review_verification||'未填写');return lines.join('\n')}
+function view(){cancelAction();const identity=selected?selected.skill.name+':'+(selected.revision||1):'';if($('verification').dataset.identity!==identity){$('verification').value='';$('verification').dataset.identity=identity}$('tools').hidden=!selected;$('editor').hidden=true;$('save').hidden=true;$('body').hidden=false;$('title').textContent=selected?.skill.name||'选择一个技能';$('description').textContent=selected?selected.skill.description+' · 当前版本 '+(selected.revision||1)+' · '+reviewLabels[selected.review_status||'pending']+(selected.approved_skill?' · 已批准旧版 '+selected.approved_revision+' 可用':''):'无技能或已进入隔离模式。';$('body').textContent=selected?skillBody(selected):'';$('history').replaceChildren();for(const version of selected?.history||[]){const option=document.createElement('option');option.value=version.revision;option.textContent='第 '+version.revision+' 版';$('history').append(option)}reviewControls()}
+  $('search').oninput=list;$('refresh').onclick=()=>load();$('saveConfig').onclick=()=>{const config={auto_learn:$('autoLearn').checked,provider_id:$('provider').value,max_skills:Number($('maxSkills').value),cooldown_seconds:Number($('cooldown').value),shared_skills:$('shared').checked,review_mode:$('reviewMode').value,auto_publish:$('autoPublish').checked};$('configState').textContent='保存中…';load({action:'config',config}).then(ok=>{$('configState').textContent=ok?'已保存；配置已持久化。':'保存失败，未应用无效配置。'})};$('edit').onclick=()=>{$('editor').value=JSON.stringify(selected.skill,null,2);$('editor').hidden=false;$('body').hidden=true;$('save').hidden=false};
+$('save').onclick=()=>{try{load({action:'edit',name:selected.skill.name,revision:selected.revision||1,skill:JSON.parse($('editor').value)})}catch(error){status('JSON 无效：'+error.message)}};
+for(const action of ['publish','delete'])$(action).onclick=()=>{if(!busy&&selected)confirmAction({action,name:selected.skill.name},action==='delete'?'确定删除技能和完整历史，并移除未被人工修改的原生发布文件吗？':'确定将此技能发布为全局原生技能吗？')};
+$('rollback').onclick=()=>{if(!busy&&selected)confirmAction({action:'rollback',name:selected.skill.name,revision:Number($('history').value)},'确定恢复此历史版本并保留当前版本历史吗？')};
+$('confirmAction').onclick=()=>{if(!busy&&pendingAction){const payload=pendingAction;cancelAction();return load(payload)}};$('cancelAction').onclick=cancelAction;
+  load();
+</script>
+</html>

@@ -1,0 +1,7 @@
+name: astrbot_plugin_task_skills
+display_name: 自动化skills学习
+author: local
+desc: 默认共享的结构化任务技能库，支持保守合并、版本回滚、原生发布和认证管理页面
+version: 1.1.0
+repo: ""
+astrbot_version: ">=4.28.1"
