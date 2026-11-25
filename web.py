@@ -194,6 +194,7 @@ class SkillWeb:
         config["auto_learn_override"] = state.get("auto_learn")
         config["auto_learn"] = plugin.enabled(scope)
         return {"records": records, "stats": {"skills": len(records),
+                "use_count": sum(r.get("use_count", 0) for r in records),
                 "revisions": sum(len(r.get("history", [])) + 1 for r in records),
                 "history_count": sum(len(r.get("history", [])) for r in records)},
                 "config": config,

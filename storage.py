@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -10,6 +11,7 @@ import unicodedata
 from pathlib import Path
 
 OWNER = "astrbot_plugin_task_skills/v1"
+IDLE_SECONDS = 30 * 24 * 60 * 60
 FIELDS = {"tags", "conditions", "tools", "workflow"}
 NAME = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 SENSITIVE = re.compile(
@@ -126,9 +128,12 @@ def semantic_content(skill):
     for key in ("tags", "conditions"):
         if key in content:
             content[key] = sorted({normalized(x) for x in content[key]})
-    for key in ("tools", "workflow"):
-        if key in content:
-            content[key] = sorted(set(content[key])) if key == "tools" else content[key]
+    content["description"] = normalized(content["description"])
+    content["steps"] = [x.rstrip(".。;；") for x in content["steps"]]
+    for key in ("checks", "cautions"):
+        content[key] = sorted({x.rstrip(".。;；") for x in content[key]})
+    if "tools" in content:
+        content["tools"] = sorted(set(content["tools"]))
     return content
 
 
@@ -234,6 +239,14 @@ class SkillStore:
         if "approved_skill" in record:
             if validate_skill(record["approved_skill"])["name"] != name:
                 raise ValueError("invalid approved snapshot")
+        record.setdefault("use_count", 0)
+        record.setdefault("last_used_at", None)
+        if type(record["use_count"]) is not int or record["use_count"] < 0:
+            raise ValueError("invalid use count")
+        for key in ("created_at", "last_used_at"):
+            value = record.get(key)
+            if value is not None and (type(value) not in (int, float) or not 0 < value < math.inf):
+                raise ValueError("invalid activity timestamp")
         return record, render_skill(skill)
 
     def list(self, scope):
@@ -261,44 +274,52 @@ class SkillStore:
         content = {k: v for k, v in skill.items() if k != "name"}
         digest = hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         records = self.list(scope)
-        if merge_target is not None:
-            allowed = candidate_revisions or {}
-            target_record = next((r for r in records if r["skill"]["name"] == merge_target), None)
-            if (merge_target not in allowed or not target_record
-                    or target_record.get("revision", 1) != allowed[merge_target]
-                    or not self.similar(target_record["skill"], skill)):
-                raise ValueError("invalid merge reference")
-        for record in records:
-            if semantic_content(record["skill"]) == semantic_content(skill):
-                if evidence:
-                    path = self.path(scope, record["skill"]["name"])
-                    if set(p.name for p in path.iterdir()) != {"index.json", "SKILL.md"}:
-                        raise ValueError("foreign files")
-                    # Replace turn-local observations together with their refs;
-                    # do not append e1/e3 to the body or alter approved snapshots.
-                    record.update(evidence=evidence[-32:],
-                                  evidence_refs=skill.get("success_evidence", []), updated_at=time.time())
-                    self.atomic(path / "index.json", json.dumps(record, ensure_ascii=False))
-                return "duplicate"
-        candidates = [r for r in records if self.similar(r["skill"], skill)]
-        if len(candidates) == 1:
-            old = candidates[0]["skill"]
-            merged = dict(skill, name=old["name"])
-            # Only replace steps when the ordered operations and conditions agree.
-            for key in ("checks", "cautions", "tags"):
-                merged[key] = list(dict.fromkeys(old[key] + skill[key]))
-                if len(merged[key]) > 8:
-                    return "merge-capacity"
-            self.edit(scope, old["name"], merged, candidates[0].get("revision", 1), evidence=evidence)
-            return "merged:" + old["name"]
+        candidates = [r for r in records if r["review_status"] != "rejected" and self.similar(r["skill"], skill)]
+        if merge_target is not None and not any(
+            r["skill"]["name"] == merge_target and r.get("revision", 1) == (candidate_revisions or {}).get(merge_target)
+            for r in candidates
+        ):
+            raise ValueError("invalid merge reference")
+        content_key = semantic_content(skill)
+        duplicate = next((r for r in records if semantic_content(r["skill"]) == content_key), None)
+        if duplicate is None and len(candidates) > 1:
+            # Do not let a model choose among ambiguous matches or create another copy.
+            return "merge-ambiguous"
+        if duplicate is None and candidates:
+            record = candidates[0]
+            old = record["skill"]
+            merged = dict(skill, name=old["name"], description=old["description"], conditions=old["conditions"])
+            # Keep existing safety notes and checks when full. Ignore tag-only
+            # churn, but prefer the currently grounded tools for a real update.
+            merged["tags"] = old["tags"]
+            for key in ("checks", "cautions"):
+                items = {}
+                for item in old[key] + skill[key]:
+                    items.setdefault(item.rstrip(".。;；"), item)
+                merged[key] = list(items.values())[:8]
+            proposed, current = semantic_content(merged), semantic_content(old)
+            if all(proposed[key] == current[key] for key in ("steps", "checks", "cautions")):
+                duplicate = record
+            else:
+                return "merge-pending:" + old["name"]
+        if duplicate is not None:
+            if evidence and duplicate["review_status"] != "rejected":
+                path = self.path(scope, duplicate["skill"]["name"])
+                if set(p.name for p in path.iterdir()) != {"index.json", "SKILL.md"}:
+                    raise ValueError("foreign files")
+                duplicate.update(evidence=evidence[-32:], evidence_refs=skill.get("success_evidence", []))
+                self.atomic(path / "index.json", json.dumps(duplicate, ensure_ascii=False))
+            return "duplicate"
         target = self.path(scope, skill["name"])
         if target.exists():
             return "name-conflict"
         count = sum(1 for p in self.root.glob("*/*") if p.is_dir() and not p.name.startswith("."))
         if count >= self.max_skills:
             return "capacity"
+        now = time.time()
         record = {"owner": OWNER, "scope": scope, "digest": digest, "skill": skill,
-                  "version": 2, "revision": 1, "history": [], "updated_at": time.time(),
+                  "version": 2, "revision": 1, "history": [], "updated_at": now,
+                  "created_at": now, "use_count": 0, "last_used_at": None,
                   "review_status": "pending", "evidence": evidence or [],
                   "anchor_hash": hashlib.sha256(body.encode()).hexdigest()}
         temporary = Path(tempfile.mkdtemp(prefix=".pending-", dir=parent))
@@ -329,11 +350,11 @@ class SkillStore:
         # retain their order, and the final outcome operation must stay fixed.
         fixed = lambda ops: [x for x in ops if not x.startswith(("find-", "read-", "inspect-", "list-"))]
         old_tools, new_tools = set(old["tools"]), set(new["tools"])
-        return (normalized(old["description"]) == normalized(new["description"])
+        same_purpose = normalized(old["description"]) == normalized(new["description"])
+        return (same_purpose
                 and {normalized(x) for x in old["conditions"]} == {normalized(x) for x in new["conditions"]}
-                and len(set(a)) >= 2 and set(a) == set(b) and a[-1] == b[-1] and fixed(a) == fixed(b)
-                and (old_tools <= new_tools or new_tools <= old_tools)
-                and len({normalized(x) for x in old["tags"]} & {normalized(x) for x in new["tags"]}) >= 2)
+                and (a == b or (len(set(a)) >= 2 and set(a) == set(b) and a[-1] == b[-1] and fixed(a) == fixed(b)))
+                and (old_tools <= new_tools or new_tools <= old_tools))
 
     def generation_candidates(self, scope, task, tools):
         """Bounded untrusted dedup references, including pending but not rejected."""
@@ -351,12 +372,12 @@ class SkillStore:
             if not score:
                 continue
             summary = {"name": skill["name"], "review_status": record["review_status"]}
-            for key, limit in (("description", 300), ("conditions", 3), ("tags", 4), ("tools", 8), ("workflow", 8)):
+            for key in ("description", "conditions", "tags", "tools", "workflow"):
                 value = skill.get(key, [] if key != "description" else "")
                 if isinstance(value, str):
-                    summary[key] = safe_task(value)[:limit]
+                    summary[key] = safe_task(value)
                 else:
-                    summary[key] = [safe_task(x)[:100] for x in value[:limit]]
+                    summary[key] = [safe_task(x) for x in value]
             ranked.append((score, skill["name"], record.get("revision", 1), summary))
         selected = sorted(ranked, key=lambda x: (-x[0], x[1]))[:3]
         return [x[3] for x in selected], {x[1]: x[2] for x in selected}
@@ -376,7 +397,7 @@ class SkillStore:
             if os.path.exists(tmp):
                 os.unlink(tmp)
 
-    def edit(self, scope, name, raw, expected_revision=None, evidence=None):
+    def edit(self, scope, name, raw, expected_revision=None, evidence=None, *, automatic_merge=False):
         skill = validate_skill(raw)
         if skill["name"] != name:
             raise ValueError("rename not supported")
@@ -387,12 +408,18 @@ class SkillStore:
         path = self.path(scope, name)
         if set(p.name for p in path.iterdir()) != {"index.json", "SKILL.md"}:
             raise ValueError("foreign files")
+        if automatic_merge and (not isinstance(evidence, list) or not evidence or not skill.get("success_evidence")):
+            raise ValueError("automatic merge requires linked evidence")
         history = record.get("history", [])
         if len(history) >= 20:
-            raise ValueError("revision capacity; export history before further edits")
+            if not automatic_merge:
+                raise ValueError("revision capacity; export history before further edits")
+            # Keep the approved revision and the most recent rollback history.
+            index = next(i for i, item in enumerate(history) if item["revision"] != record.get("approved_revision"))
+            history.pop(index)
         history.append({"revision": revision, "skill": record["skill"]})
         record.update(version=2, revision=revision + 1, history=history, skill=skill,
-                      review_status="pending", evidence=evidence or [],
+                      review_status="pending", evidence=evidence or [], evidence_refs=skill.get("success_evidence", []),
                       updated_at=time.time(), anchor_hash=hashlib.sha256((path / "SKILL.md").read_text(encoding="utf-8").encode()).hexdigest(),
                       digest=hashlib.sha256(json.dumps({k: v for k, v in skill.items() if k != "name"},
                                                      sort_keys=True, ensure_ascii=False).encode()).hexdigest())
@@ -426,6 +453,65 @@ class SkillStore:
         if previous is None:
             raise ValueError("revision unavailable")
         return self.edit(scope, name, previous, record.get("revision", 1))
+
+    def record_use(self, scope, name, *, owned_native=False):
+        record, _ = self.read(scope, name)
+        if not owned_native and not record.get("approved_skill"):
+            raise ValueError("administrator approval required")
+        path = self.path(scope, name)
+        if {p.name for p in path.iterdir()} != {"index.json", "SKILL.md"}:
+            raise ValueError("foreign files")
+        now = time.time()
+        if record.get("created_at") is None:
+            record["created_at"] = now
+        record["last_used_at"] = max(now, record["last_used_at"] or 0)
+        record["use_count"] += 1
+        self.atomic(path / "index.json", json.dumps(record, ensure_ascii=False))
+        return record.get("approved_skill")
+
+    def prune_unused(self, publisher, *, now=None):
+        now = time.time() if now is None else now
+        removed = native_removed = skipped = 0
+        shared = self.scope("shared", "shared")
+        for parent in sorted(self.root.iterdir()):
+            if not re.fullmatch(r"[0-9a-f]{64}", parent.name) or not parent.is_dir() or parent.is_symlink():
+                continue
+            scope = parent.name
+            try:
+                records = self.list(scope)
+            except (OSError, ValueError):
+                skipped += 1
+                continue
+            for record in records:
+                name = record["skill"]["name"]
+                try:
+                    path = self.path(scope, name)
+                    if {p.name for p in path.iterdir()} != {"index.json", "SKILL.md"}:
+                        continue
+                    # Older releases did not track use. Give existing records a
+                    # full observation window, instead of guessing their last use.
+                    if record.get("created_at") is None:
+                        record["created_at"] = now
+                        self.atomic(path / "index.json", json.dumps(record, ensure_ascii=False))
+                    if now - (record["last_used_at"] or record["created_at"]) <= IDLE_SECONDS:
+                        continue
+                    if scope == shared:
+                        if publisher is None:
+                            continue
+                        if publisher.target(name).exists():
+                            publisher.unpublish(name)
+                            native_removed += 1
+                    self.delete(scope, name)
+                    removed += 1
+                except (OSError, ValueError, KeyError, TypeError):
+                    skipped += 1
+            # Leave state.json (settings/cooldown) and any foreign files alone.
+            try:
+                if not any(parent.iterdir()):
+                    parent.rmdir()
+            except OSError:
+                pass
+        return removed, native_removed, skipped
 
     def delete(self, scope, name):
         self.read(scope, name)
@@ -465,7 +551,7 @@ class SkillStore:
                     os.unlink(tmp)
         return state
 
-    def search(self, scope, query):
+    def search(self, scope, query, *, details=True):
         if not isinstance(query, str) or not 1 <= len(query.strip()) <= 200:
             return []
         query = query.casefold().strip()
@@ -473,7 +559,7 @@ class SkillStore:
         ranked = []
         for record in self.list(scope):
             skill = record.get("approved_skill")
-            if not skill:
+            if record["review_status"] == "rejected" or not skill:
                 continue
             haystack = json.dumps(skill, ensure_ascii=False).casefold()
             score = sum(term in haystack for term in terms) + 3 * (query in haystack)
@@ -481,8 +567,8 @@ class SkillStore:
                 field = json.dumps(skill.get(key, ""), ensure_ascii=False).casefold()
                 score += weight * sum(term in field for term in terms)
             if score:
-                ranked.append((score, skill["name"], render_skill(skill)))
-        return [(name, body) for _, name, body in sorted(ranked, reverse=True)[:3]]
+                ranked.append((score, skill["name"], render_skill(skill) if details else skill["description"]))
+        return [(name, text) for _, name, text in sorted(ranked, reverse=True)[:3]]
 
 
 class NativePublisher:
